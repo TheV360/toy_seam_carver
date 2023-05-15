@@ -1,0 +1,12 @@
+[package]
+name = "toy_seam_carver"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+zune-jpeg = "0.3.17"
+
+[profile.dev.package.zune-jpeg]
+opt-level = 3
