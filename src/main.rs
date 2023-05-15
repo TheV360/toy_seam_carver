@@ -1,5 +1,5 @@
-use std::fs::File;
-use std::io::Write;
+use std::fs::{File, read};
+use std::io::{Result as IoResult, Write};
 
 use zune_jpeg::JpegDecoder;
 use zune_jpeg::zune_core::{options::DecoderOptions, colorspace::ColorSpace};
@@ -7,11 +7,11 @@ use zune_jpeg::zune_core::{options::DecoderOptions, colorspace::ColorSpace};
 mod edge_detect; use edge_detect::*;
 mod seam_find; use seam_find::*;
 
-fn main() -> std::io::Result<()> {
+fn main() -> IoResult<()> {
 	let args: Vec<String> = std::env::args().skip(1).collect();
 	assert_eq!(args.len(), 1, "supply a jpeg file to squish");
 	
-	let file = std::fs::read(&args[0])?;
+	let file = read(&args[0])?;
 	let mut decoder = JpegDecoder::new_with_options(
 		DecoderOptions::default()
 			.set_strict_mode(false)
@@ -37,21 +37,26 @@ fn main() -> std::io::Result<()> {
 	let edges = edge_detect(&intensity, size);
 	let min_energy = min_vert_energy(&edges, size);
 	
-	write_debug_ppm("intensity", &intensity, size)?;
-	write_debug_ppm("edges", &edges, size)?;
-	write_debug_ppm("energy", &min_energy, size)?;
+	write_debug_pgm("intensity", &intensity, size)?;
+	write_debug_pgm("edges", &edges, size)?;
+	write_debug_pgm("energy", &min_energy, size)?;
 	
-    find_vert_seam(&min_energy, size);
+	eprintln!("finding seams...");
+	let seams = find_all_vert_seams(&min_energy, size);
+	let seams_ref = seams.iter().map(Vec::as_ref).collect::<Vec<_>>();
+	eprintln!("visualizing seam order...");
+	let seams_vis = visualize_seams(&seams_ref);
+    write_debug_pgm("seams", &seams_vis, size)?;
 	
 	Ok(())
 }
 
-fn write_debug_ppm(
+fn write_debug_pgm(
 	filename: &str,
 	data: &[f32],
 	(width, height): (usize, usize)
-) -> std::io::Result<()> {
-	let mut ppm = File::create(format!("./{filename}.ppm"))?;
+) -> IoResult<()> {
+	let mut ppm = File::create(format!("./{filename}.pgm"))?;
 	
 	// write header
 	writeln!(ppm, "P5 {width} {height} 255")?;
@@ -67,7 +72,22 @@ fn write_debug_ppm(
 	// write it!!!@!
 	ppm.write_all(&bytes)?;
 	
-	eprintln!("wrote debug ppm of {filename}");
+	eprintln!("wrote debug pgm of {filename}");
 	
 	Ok(())
+}
+
+fn visualize_seams(seams: &[&[usize]]) -> Vec<f32> {
+	assert!(!seams.is_empty());
+	
+	let height = seams[0].len();
+	
+	let mut field = vec![vec![]; height];
+	for (i, seam) in seams.iter().enumerate().rev() {
+		for (y, x) in seam.iter().cloned().enumerate() {
+			field[y].insert(x, i as f32);
+		}
+	}
+	
+	field.into_iter().flatten().collect()
 }

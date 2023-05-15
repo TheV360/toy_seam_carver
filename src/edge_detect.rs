@@ -18,7 +18,7 @@ pub fn intensity_from_rgb([r, g, b]: [u8; 3]) -> f32 {
 
 pub fn rgb_to_intensity(
 	rgb: &[[u8; 3]], (width, height): (usize, usize)
-) -> Box<[f32]> {
+) -> Vec<f32> {
 	assert!(width  > 0, "need non-zero width");
 	assert!(height > 0, "need non-zero height");
 	
@@ -41,7 +41,15 @@ fn kernel_mul<const S: usize>(
 
 pub fn edge_detect(
 	intensity: &[f32], (width, height): (usize, usize)
-) -> Box<[f32]> {
+) -> Vec<f32> {
+	assert!(width  > 0, "need non-zero width");
+	assert!(height > 0, "need non-zero height");
+	
+	assert_eq!(
+		intensity.len(), width * height,
+		"need intensity array to match width*height"
+	);
+	
 	let mut edginess = intensity.to_vec();
 	
 	for y in 0..height {
@@ -69,5 +77,5 @@ pub fn edge_detect(
 		}
 	}
 	
-	edginess.into_boxed_slice()
+	edginess
 }
